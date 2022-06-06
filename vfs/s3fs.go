@@ -145,18 +145,17 @@ func (fs *S3Fs) Stat(name string) (os.FileInfo, error) {
 	}
 	// Eliminate the need for s3:GetObject permission for security concerns.
 	// It's okay to overwrite the existing file if it exists.
-	var err error
 	if os.Getenv("S3FS_SKIP_HEAD_OBJECT") == "" {
 		var obj *s3.HeadObjectOutput
-		obj, err = fs.headObject(name)
+		obj, err := fs.headObject(name)
 		if err == nil {
 			// a "dir" has a trailing "/" so we cannot have a directory here
 			return updateFileInfoModTime(fs.getStorageID(), name, NewFileInfo(name, false, obj.ContentLength,
 				util.GetTimeFromPointer(obj.LastModified), false))
 		}
-	}
-	if !fs.IsNotExist(err) {
-		return result, err
+		if !fs.IsNotExist(err) {
+			return result, err
+		}
 	}
 	// now check if this is a prefix (virtual directory)
 	hasContents, err := fs.hasContents(name)

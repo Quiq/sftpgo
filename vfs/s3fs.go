@@ -143,11 +143,17 @@ func (fs *S3Fs) Stat(name string) (os.FileInfo, error) {
 	if fs.config.KeyPrefix == name+"/" {
 		return NewFileInfo(name, true, 0, time.Now(), false), nil
 	}
-	obj, err := fs.headObject(name)
-	if err == nil {
-		// a "dir" has a trailing "/" so we cannot have a directory here
-		return updateFileInfoModTime(fs.getStorageID(), name, NewFileInfo(name, false, obj.ContentLength,
-			util.GetTimeFromPointer(obj.LastModified), false))
+	// Eliminate the need for s3:GetObject permission for security concerns.
+	// It's okay to overwrite the existing file if it exists.
+	var err error
+	if os.Getenv("S3FS_SKIP_HEAD_OBJECT") == "" {
+		var obj *s3.HeadObjectOutput
+		obj, err = fs.headObject(name)
+		if err == nil {
+			// a "dir" has a trailing "/" so we cannot have a directory here
+			return updateFileInfoModTime(fs.getStorageID(), name, NewFileInfo(name, false, obj.ContentLength,
+				util.GetTimeFromPointer(obj.LastModified), false))
+		}
 	}
 	if !fs.IsNotExist(err) {
 		return result, err
